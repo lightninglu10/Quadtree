@@ -1,0 +1,283 @@
+package util;
+
+import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.LinkedList;
+
+/** A Set2D implemented with a QuadTree.  The type argument, Point,
+ *  indicates the type of points contained in the set.  The rather
+ *  involved type parameter structure here allows you to extend
+ *  QuadPoint, and thus add additional data and methods to the points
+ *  you store.
+ *  @author Patrick Lu
+ */
+
+public class QuadTree<Point> extends Set2D<Point> {
+
+    /** An empty set of Points that uses VIEW to extract position information.
+     *  The argument TRANSITIONSIZE has no externally
+     *  visible effect, but may affect performance.  It is intended to specify
+     *  the largest set Points that resides unsubdivided in a single node of
+     *  the tree.  While space-efficient, such nodes have slower search times
+     *  as their size increases.
+     *  */
+
+    public QuadTree(PointView<Point> view, int transitionSize) {
+        super(view);
+        _transitionSize = transitionSize;
+        root = new ArrayList<Point>();
+        children = new ArrayList<QuadTree<Point>>();
+    }
+
+    /* PUBLIC METHODS.  See Set2D.java for documentation */
+
+    /** Returns my transitionSize parameter (supplied to my constructor). */
+    public int getTransitionSize() {
+        return _transitionSize;
+    }
+
+    @Override
+    public int size() {
+        if (children.size() == 0) {
+            return root.size();
+        } else {
+            return (root.size() + children.get(0).size()
+                    + children.get(1).size() + children.get(2).size()
+                    + children.get(3).size());
+        }
+    }
+
+    /** Tells if quadtree has children.
+     * @return boolean true if has children */
+    public boolean notempty() {
+        if (children.size() != 0) {
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    /**String of the QuadTree.
+     * @return x string value of the quadtree. */
+    public String toString() {
+        String x = root.toString() + "\n";
+        if (children.size() == 0) {
+            return x;
+        } else {
+            for (int i = 0; i < 4; i += 1) {
+                x += "Quadrant" + i + children.get(i).toString() + "\n";
+            }
+        }
+        return x;
+    }
+
+    @Override
+    public void add(Point p) {
+        if (notempty()) {
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 0) {
+                root.add(p);
+            }
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 1) {
+                children.get(0).add(p);
+            }
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 2) {
+                children.get(1).add(p);
+            }
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 3) {
+                children.get(2).add(p);
+            }
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 4) {
+                children.get(3).add(p);
+            }
+        } else if (root.size() == _transitionSize) {
+            q1 = new QuadTree<Point>(getView(), _transitionSize);
+            q2 = new QuadTree<Point>(getView(), _transitionSize);
+            q3 = new QuadTree<Point>(getView(), _transitionSize);
+            q4 = new QuadTree<Point>(getView(), _transitionSize);
+            children.add(q1);
+            children.add(q2);
+            children.add(q3);
+            children.add(q4);
+            for (int i = root.size() - 1; i > 0; i -= 1) {
+                add(root.get(i));
+                if (quadrant(getView().getX(p), getView().getY(p),
+                             getView().getX(root.get(0)),
+                             getView().getY(root.get(0))) != 0) {
+                    root.remove(root.get(i));
+                }
+            }
+            add(p);
+        } else {
+            root.add(p);
+        }
+    }
+
+    @Override
+    public void remove(Point p) {
+        for (Point x : root) {
+            if (x.equals(p)) {
+                root.remove(p);
+                if (root.size() == 0) {
+                    Iterator<Point> iter = iterator();
+                    Point points;
+                    children.clear();
+                    while (iter.hasNext()) {
+                        points = iter.next();
+                        add(points);
+                    }
+                }
+                return;
+            }
+        }
+        if (!notempty()) {
+            return;
+        }
+        if (getView().getX(p) >= getView().getX(root.get(0))) {
+            if (getView().getY(p) >= getView().getY(root.get(0))) {
+                children.get(0).remove(p);
+            } else {
+                children.get(3).remove(p);
+            }
+        } else {
+            if (getView().getY(p) >= getView().getY(root.get(0))) {
+                children.get(1).remove(p);
+            } else {
+                children.get(2).remove(p);
+            }
+        }
+    }
+
+    @Override
+    public boolean contains(Point p) {
+        for (int i = 0; i < root.size(); i += 1) {
+            if (getView().equals(p, root.get(i))) {
+                return true;
+            }
+        }
+        if (children.size() != 0) {
+            if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 1) {
+                return children.get(0).contains(p);
+            } else if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 2) {
+                return children.get(1).contains(p);
+            } else if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 3) {
+                return children.get(2).contains(p);
+            } else if (quadrant(getView().getX(p), getView().getY(p),
+                         getView().getX(root.get(0)),
+                         getView().getY(root.get(0))) == 4) {
+                return children.get(3).contains(p);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Iterator<Point> iterator() {
+        return help().iterator();
+    }
+
+    /** Helper method for the iterator.
+     * @return returns linkedlist. */
+    private LinkedList<Point> help() {
+        LinkedList<Point> pointer = new LinkedList<Point>();
+        if (root.size() != 0) {
+            for (Point p : root) {
+                pointer.add(p);
+            }
+        }
+        if (notempty()) {
+            pointer.addAll(children.get(0).help());
+            pointer.addAll(children.get(1).help());
+            pointer.addAll(children.get(2).help());
+            pointer.addAll(children.get(3).help());
+        } else {
+            return pointer;
+        }
+        if (root.size() == 0) {
+            return pointer;
+        }
+        return pointer;
+    }
+
+
+    @Override
+    public Iterator<Point> iterator(double xl, double yl,
+                                    double xu, double yu) {
+        return helper(xl, yl, xu, yu).iterator();
+    }
+
+    /** Helper method for the iterator.
+     * @param xl x low for box
+     * @param yl y low for box
+     * @param xu x high for box
+     * @param yu y high for box
+     * @return returns linkedlist */
+    private LinkedList<Point> helper(double xl, double yl,
+                                     double xu, double yu) {
+        LinkedList<Point> pointer = new LinkedList<Point>();
+        if (root.size() == 0) {
+            return pointer;
+        }
+        for (Point p : root) {
+            if (getView().getX(p) <= xu && getView().getX(p) >= xl
+                && getView().getY(p) <= yu && getView().getY(p) >= yl) {
+                pointer.add(p);
+            }
+        }
+        if (notempty()) {
+            Point node = root.get(0);
+            if (getView().getX(node) <= xu && getView().getY(node) <= yu) {
+                pointer.addAll(children.get(0).helper(xl, yl, xu, yu));
+            }
+            if (getView().getX(node) <= xu && getView().getY(node) >= yl) {
+                pointer.addAll(children.get(3).helper(xl, yl, xu, yu));
+            }
+            if (getView().getX(node) >= xl && getView().getY(node) <= yu) {
+                pointer.addAll(children.get(1).helper(xl, yl, xu, yu));
+            }
+            if (getView().getX(node) >= xl && getView().getY(node) >= yl) {
+                pointer.addAll(children.get(2).helper(xl, yl, xu, yu));
+            }
+        } else {
+            return pointer;
+        }
+        return pointer;
+    }
+
+    /** The maximum size for an unsubdivided node. */
+    private int _transitionSize;
+
+    /** The root of the tree. */
+    private ArrayList<Point> root;
+
+    /** List of children. */
+    private ArrayList<QuadTree<Point>> children;
+
+    /** Quadtree Q1. */
+    private QuadTree<Point> q1;
+
+    /** Quadtree Q2. */
+    private QuadTree<Point> q2;
+
+    /** Quadtree Q3. */
+    private QuadTree<Point> q3;
+
+    /** Quadtree Q4. */
+    private QuadTree<Point> q4;
+}
+

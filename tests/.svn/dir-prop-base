@@ -1,0 +1,15 @@
+K 10
+svn:ignore
+V 104
+
+
+badtest0.out
+big1Mil.comp
+big1Mil.inp
+big1Mil.out
+big1Mil.std
+big1Mil.trk
+filereader.java
+trivial.out
+
+END
